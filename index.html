@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a8a">
+<title>Prestoje</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f1f5f9; --card:#ffffff; --ink:#0f172a; --muted:#64748b;
+  --line:#e2e8f0; --accent:#1e3a8a; --accent2:#2563eb; --danger:#dc2626; --ok:#059669;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;min-height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg); color:var(--ink); font-size:16px;
+}
+header{
+  position:sticky; top:0; z-index:20; background:var(--accent); color:#fff;
+  padding:calc(10px + env(safe-area-inset-top)) 12px 10px;
+}
+header h1{margin:0;font-size:18px;font-weight:650;letter-spacing:.2px}
+.hdrrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.chip{font-size:12px;opacity:.9;white-space:nowrap}
+/* spodné odsadenie musí byť na obsahu (nie na body), aby ho neprekryla navigácia */
+main{padding:12px 12px calc(110px + env(safe-area-inset-bottom))}
+.hidden{display:none !important}
+
+/* --- shift bar --- */
+.shiftbar{display:flex;gap:6px;align-items:center;margin-top:10px}
+.shiftbar button{
+  background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:10px;
+  width:38px;height:38px;font-size:18px;flex:0 0 auto
+}
+.shiftbar .fields{flex:1;display:flex;gap:6px;min-width:0}
+.shiftbar input,.shiftbar select{
+  flex:1;min-width:0;background:rgba(255,255,255,.16);color:#fff;border:0;
+  border-radius:10px;padding:9px 8px;font-size:14px
+}
+.shiftbar select option{color:#000}
+.sumline{margin-top:8px;font-size:13px;opacity:.9}
+
+/* --- cards --- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.card h3{margin:0 0 8px;font-size:15px}
+.rec-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.rec-title{font-weight:650;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{background:#eef2ff;color:var(--accent2);border-radius:999px;padding:3px 9px;font-size:12px;font-weight:650;flex:0 0 auto}
+.badge.run{background:#ffedd5;color:#c2410c}
+.badge.hl{background:#fee2e2;color:#b91c1c}
+.card.run{border-color:#fdba74;border-left:4px solid #f97316}
+.card.hl{border-color:#fca5a5;border-left:4px solid #dc2626;background:#fffafa}
+.card.hl .rec-title::before{content:"⚠ ";color:#dc2626}
+.grp{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;margin-right:6px;vertical-align:middle;animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.row{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:14px;border-top:1px dashed var(--line)}
+.row:first-of-type{border-top:0}
+.row .k{color:var(--muted);flex:0 0 45%}
+.row .v{text-align:right;font-weight:500;word-break:break-word}
+.empty{text-align:center;color:var(--muted);padding:40px 16px;font-size:14px}
+
+/* --- buttons --- */
+button{font-family:inherit}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:0;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;
+  background:var(--accent2);color:#fff;cursor:pointer
+}
+.btn.sec{background:#e2e8f0;color:var(--ink)}
+.btn.danger{background:#fee2e2;color:var(--danger)}
+.btn.wide{width:100%}
+.btn.sm{padding:8px 12px;font-size:13px;border-radius:10px}
+.btnrow{display:flex;gap:8px;margin-top:10px}
+.btnrow .btn{flex:1}
+
+.fab{
+  position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:30;
+  width:60px;height:60px;border-radius:50%;background:var(--accent2);color:#fff;
+  font-size:32px;line-height:1;border:0;box-shadow:0 6px 18px rgba(37,99,235,.45)
+}
+
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;
+  background:#fff;border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom)
+}
+nav button{flex:1;background:0;border:0;padding:12px 4px 14px;color:var(--muted);font-size:12px;font-weight:600}
+nav button .ic{display:block;font-size:20px;margin-bottom:2px}
+nav button.on{color:var(--accent2)}
+
+/* --- forms --- */
+label.f{display:block;margin-bottom:12px}
+label.f > span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px;font-weight:600}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=datetime-local],select,textarea{
+  width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;
+  font-size:16px;background:#fff;color:var(--ink);font-family:inherit
+}
+.inline{display:flex;gap:6px;align-items:center}
+.inline .btn{flex:0 0 auto}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:12px}
+.chk input{width:20px;height:20px}
+.hint{font-size:12px;color:var(--muted);margin:-6px 0 12px}
+
+/* --- modal --- */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(15,23,42,.5);display:flex;align-items:flex-end}
+.sheet{
+  background:#fff;width:100%;max-height:92vh;overflow:auto;
+  border-radius:18px 18px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))
+}
+@media(min-width:640px){
+  .modal{align-items:center;justify-content:center}
+  .sheet{max-width:560px;border-radius:18px}
+  body{max-width:720px;margin:0 auto}
+}
+.sheet h2{margin:0 0 14px;font-size:18px}
+
+/* --- list items in settings --- */
+.item{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#fff}
+.item .txt{flex:1;min-width:0}
+.item .txt b{display:block;font-size:15px}
+.item .txt small{color:var(--muted);font-size:12px}
+.item .ord{display:flex;flex-direction:column;gap:2px}
+.item .ord button{width:30px;height:22px;border:1px solid var(--line);background:#f8fafc;border-radius:6px;font-size:11px;line-height:1}
+.iconbtn{width:36px;height:36px;border:0;border-radius:10px;background:#f1f5f9;font-size:16px}
+.sec-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px}
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:100px;z-index:100;
+  background:#0f172a;color:#fff;padding:11px 16px;border-radius:12px;font-size:14px;opacity:0;
+  transition:opacity .2s;pointer-events:none;max-width:90%
+}
+.toast.show{opacity:.95}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdrrow"><h1 id="hdrTitle">Prestoje</h1><span id="syncChip" class="chip"></span></div>
+  <div id="shiftbar" class="shiftbar">
+    <button id="prevShift" aria-label="Predchádzajúca zmena">‹</button>
+    <div class="fields">
+      <input type="date" id="viewDate">
+      <select id="viewShift"></select>
+    </div>
+    <button id="nextShift" aria-label="Nasledujúca zmena">›</button>
+  </div>
+  <div id="sumline" class="sumline"></div>
+</header>
+
+<main>
+  <div id="viewRecords"></div>
+  <div id="viewSettings" class="hidden"></div>
+</main>
+
+<button class="fab" id="fabAdd">+</button>
+
+<nav>
+  <button id="tabRecords" class="on"><span class="ic">▤</span>Prestoje</button>
+  <button id="tabExport"><span class="ic">⤓</span>Export</button>
+  <button id="tabSettings"><span class="ic">⚙</span>Nastavenia</button>
+</nav>
+
+<div id="modalHost"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ÚLOŽISKO A KONFIGURÁCIA
+   ============================================================ */
+const LS_CFG  = "prestoje_cfg_v1";
+const LS_REC  = "prestoje_rec_v1";
+const LS_SYNC = "prestoje_sync_v1";
+
+function uid(p){ return p + Math.random().toString(36).slice(2,9); }
+
+const DEFAULT_CFG = {
+  fields: [
+    { id:"f_linka", name:"Linka",                 type:"text",     required:true },
+    { id:"f_zac",   name:"Začiatok prestoja",     type:"datetime", required:true },
+    { id:"f_kon",   name:"Koniec prestoja",       type:"datetime", required:true },
+    { id:"f_cel",   name:"Celkový čas prestoja",  type:"duration", from:"f_zac", to:"f_kon" }
+  ],
+  shifts: [
+    { id:"s1", name:"Ranná",    start:"06:00", end:"14:00" },
+    { id:"s2", name:"Poobedná", start:"14:00", end:"22:00" },
+    { id:"s3", name:"Nočná",    start:"22:00", end:"06:00" }
+  ],
+  filterField: "f_kon",
+  titleField:  "f_linka",
+  exportOrder: ["f_linka","f_zac","f_kon","f_cel"],
+  exportSkip:  [],
+  highlightMin: 0,      // 0 = vypnuté; napr. 30 = zvýrazniť prestoje od 30 min
+  highlightRunning: true,
+  dtFormat:  "excel",   // excel | text
+  durFormat: "excel",   // excel | text | min
+  fileName:  "prestoje"
+};
+
+let cfg = load(LS_CFG, DEFAULT_CFG);
+let records = load(LS_REC, []);
+
+function load(key, dflt){
+  try{
+    const raw = localStorage.getItem(key);
+    if(!raw) return JSON.parse(JSON.stringify(dflt));
+    return JSON.parse(raw);
+  }catch(e){ return JSON.parse(JSON.stringify(dflt)); }
+}
+function persistCfg(){ localStorage.setItem(LS_CFG, JSON.stringify(cfg)); }
+// každá zmena nastavení posunie časovú pečiatku – podľa nej sa rozhoduje pri zdieľaní
+function saveCfg(){ cfg.cfgUpdatedAt = new Date().toISOString(); persistCfg(); syncSoon(); }
+function saveRec(){ localStorage.setItem(LS_REC, JSON.stringify(records)); }
+// nevymazané záznamy (vymazanie sa musí preniesť aj na ostatné telefóny)
+function live(){ return records.filter(r=>!r.deleted); }
+
+function syncExportOrder(){
+  const ids = cfg.fields.map(f=>f.id);
+  cfg.exportOrder = (cfg.exportOrder||[]).filter(id=>ids.includes(id));
+  ids.forEach(id=>{ if(!cfg.exportOrder.includes(id)) cfg.exportOrder.push(id); });
+  cfg.exportSkip = (cfg.exportSkip||[]).filter(id=>ids.includes(id));
+}
+function fieldById(id){ return cfg.fields.find(f=>f.id===id) || null; }
+
+/* ============================================================
+   ČAS / ZMENY
+   ============================================================ */
+const pad = n => String(n).padStart(2,"0");
+function todayStr(d){ d = d||new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function nowLocalInput(){ const d=new Date(); return todayStr(d)+"T"+pad(d.getHours())+":"+pad(d.getMinutes()); }
+function parseLocal(s){
+  if(!s) return null;
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if(!m) return null;
+  return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]);
+}
+function addDays(dateStr, n){
+  const d = parseLocal(dateStr+"T00:00");
+  d.setDate(d.getDate()+n);
+  return todayStr(d);
+}
+// Okno zmeny; ak koniec <= začiatok, zmena prechádza cez polnoc.
+function shiftWindow(dateStr, shift){
+  const s = parseLocal(dateStr+"T"+shift.start);
+  let e = parseLocal(dateStr+"T"+shift.end);
+  if(e.getTime() <= s.getTime()) e = new Date(e.getTime()+86400000);
+  return [s,e];
+}
+function shiftsSorted(){
+  return cfg.shifts.slice().sort((a,b)=> a.start.localeCompare(b.start));
+}
+function findCurrentShift(){
+  const now = new Date();
+  const list = shiftsSorted();
+  for(const off of [0,-1]){
+    const dstr = addDays(todayStr(), off);
+    for(const sh of list){
+      const [s,e] = shiftWindow(dstr, sh);
+      if(now >= s && now < e) return { date:dstr, shiftId:sh.id };
+    }
+  }
+  return { date: todayStr(), shiftId: list.length ? list[0].id : "all" };
+}
+function fmtDate(d){
+  if(!d || isNaN(d)) return "";
+  return pad(d.getDate())+"."+pad(d.getMonth()+1)+"."+d.getFullYear()+" "+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+function fmtDT(v){ return fmtDate(parseLocal(v)); }
+function durationMin(rec, f){
+  const a = parseLocal(rec.values[f.from]);
+  const b = parseLocal(rec.values[f.to]);
+  if(!a || !b) return null;
+  return Math.round((b - a)/60000);
+}
+function fmtDur(min){
+  if(min===null || min===undefined) return "";
+  const neg = min < 0; min = Math.abs(min);
+  return (neg?"-":"") + Math.floor(min/60) + ":" + pad(min%60);
+}
+// "1:30" -> 90, "90" -> 90, "1,5h" -> 90
+function parseDurInput(s){
+  s = String(s||"").trim().replace(",",".").replace(/\s+/g,"");
+  if(!s) return null;
+  let m = s.match(/^(\d+):([0-5]?\d)$/);
+  if(m) return (+m[1])*60 + (+m[2]);
+  m = s.match(/^(\d+(?:\.\d+)?)h$/i);
+  if(m) return Math.round(parseFloat(m[1])*60);
+  m = s.match(/^(\d+(?:\.\d+)?)$/);
+  if(m) return Math.round(parseFloat(m[1]));
+  return null;
+}
+function plusMin(dtStr, min){
+  const d = parseLocal(dtStr);
+  if(!d) return "";
+  const e = new Date(d.getTime() + min*60000);
+  return todayStr(e)+"T"+pad(e.getHours())+":"+pad(e.getMinutes());
+}
+// pole "koniec" = cieľové pole výpočtu trvania, inak filtrovacie pole
+function endFieldId(){
+  const d = cfg.fields.find(f=>f.type==="duration");
+  if(d && d.to) return d.to;
+  return cfg.filterField || null;
+}
+function startFieldId(){
+  const d = cfg.fields.find(f=>f.type==="duration");
+  if(d && d.from) return d.from;
+  const dt = cfg.fields.find(f=>f.type==="datetime");
+  return dt ? dt.id : null;
+}
+function isRunning(r){
+  const ef = endFieldId();
+  return !!ef && !r.values[ef];
+}
+// prekročený nastavený limit dĺžky prestoja (vrátane hranice)
+function overLimit(min){
+  const L = parseInt(cfg.highlightMin) || 0;
+  return L > 0 && min !== null && min !== undefined && min >= L;
+}
+function recMinutes(r){
+  const durF = cfg.fields.find(f=>f.type==="duration");
+  if(isRunning(r)){
+    const st = parseLocal(r.values[startFieldId()]);
+    return st ? Math.round((new Date() - st)/60000) : null;
+  }
+  return durF ? durationMin(r, durF) : null;
+}
+function recHighlighted(r){
+  if(isRunning(r) && !cfg.highlightRunning) return false;
+  return overLimit(recMinutes(r));
+}
+
+/* ============================================================
+   AKTUÁLNY POHĽAD
+   ============================================================ */
+let view = findCurrentShift();
+let tab  = "records";
+
+function currentWindow(){
+  if(view.shiftId === "all"){
+    return [ parseLocal(view.date+"T00:00"), new Date(parseLocal(view.date+"T00:00").getTime()+86400000) ];
+  }
+  const sh = cfg.shifts.find(s=>s.id===view.shiftId);
+  if(!sh) return [ parseLocal(view.date+"T00:00"), new Date(parseLocal(view.date+"T00:00").getTime()+86400000) ];
+  return shiftWindow(view.date, sh);
+}
+// ukončené prestoje spadajúce do okna (podľa filtrovacieho poľa)
+function recordsIn(win){
+  const [s,e] = win;
+  const ff = cfg.filterField;
+  return live().filter(r=>{
+    if(isRunning(r)) return false;
+    const d = parseLocal(r.values[ff]);
+    if(!d) return false;
+    return d >= s && d < e;
+  }).sort((a,b)=>{
+    const x = parseLocal(a.values[ff]), y = parseLocal(b.values[ff]);
+    return y - x;
+  });
+}
+// prebiehajúce prestoje (bez zadaného konca)
+function runningIn(win){
+  const sf = startFieldId();
+  const [s,e] = win;
+  const now = new Date();
+  const isCurrentWindow = now >= s && now < e;
+  return live().filter(r=>{
+    if(!isRunning(r)) return false;
+    if(isCurrentWindow) return true;        // v prebiehajúcej zmene vidno všetky neukončené
+    const d = parseLocal(r.values[sf]);
+    return d && d >= s && d < e;            // inak podľa začiatku prestoja
+  }).sort((a,b)=> (parseLocal(b.values[sf])||0) - (parseLocal(a.values[sf])||0));
+}
+function stopNow(id, ev){
+  if(ev) ev.stopPropagation();
+  const r = records.find(x=>x.id===id);
+  const ef = endFieldId();
+  if(!r || !ef) return;
+  r.values[ef] = nowLocalInput();
+  r.updatedAt = new Date().toISOString();
+  saveRec(); syncSoon(); renderAll(); toast("Prestoj ukončený");
+}
+function stepShift(dir){
+  const list = shiftsSorted();
+  if(view.shiftId === "all" || !list.length){
+    view.date = addDays(view.date, dir);
+  } else {
+    let i = list.findIndex(s=>s.id===view.shiftId);
+    i += dir;
+    if(i < 0){ i = list.length-1; view.date = addDays(view.date,-1); }
+    else if(i >= list.length){ i = 0; view.date = addDays(view.date, 1); }
+    view.shiftId = list[i].id;
+  }
+  renderAll();
+}
+
+/* ============================================================
+   RENDER – PRESTOJE
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+function renderShiftBar(){
+  $("viewDate").value = view.date;
+  const sel = $("viewShift");
+  sel.innerHTML = cfg.shifts.map(s=>
+    '<option value="'+s.id+'">'+esc(s.name)+" ("+s.start+"–"+s.end+")</option>"
+  ).join("") + '<option value="all">Celý deň</option>';
+  sel.value = view.shiftId;
+}
+
+function renderRecords(){
+  renderShiftBar();
+  const win  = currentWindow();
+  const done = recordsIn(win);
+  const run  = runningIn(win);
+  const durF = cfg.fields.find(f=>f.type==="duration");
+  let total = 0, haveTotal = false;
+  if(durF){
+    done.forEach(r=>{ const m = durationMin(r,durF); if(m!==null){ total += m; haveTotal = true; } });
+  }
+  const overCount = done.concat(run).filter(recHighlighted).length;
+  $("sumline").textContent =
+    "Ukončené: " + done.length
+    + (haveTotal ? "  ·  Spolu: " + fmtDur(total) + " h" : "")
+    + (run.length ? "  ·  Prebieha: " + run.length : "")
+    + (overCount ? "  ·  ⚠ Nad limit: " + overCount : "");
+
+  const host = $("viewRecords");
+  if(!done.length && !run.length){
+    host.innerHTML = '<div class="empty">Žiadne prestoje v tejto zmene.<br>Nový pridáš tlačidlom <b>+</b>.</div>';
+    return;
+  }
+  let h = "";
+  if(run.length){
+    h += '<div class="grp"><span class="dot"></span>Prebiehajúce prestoje</div>';
+    h += run.map(r=>recCard(r, true, durF)).join("");
+  }
+  if(done.length){
+    if(run.length) h += '<div class="grp">Ukončené v tejto zmene</div>';
+    h += done.map(r=>recCard(r, false, durF)).join("");
+  }
+  host.innerHTML = h;
+}
+
+function recCard(r, running, durF){
+  const tf  = fieldById(cfg.titleField);
+  const ttl = tf ? (displayValue(r, tf) || "Prestoj") : "Prestoj";
+  const hl  = recHighlighted(r);
+  let bdg = "";
+  if(running){
+    const mins = recMinutes(r);
+    bdg = '<span class="badge '+(hl?"hl":"run")+'">prebieha'
+        + (mins!==null && mins>=0 ? " · "+fmtDur(mins) : "") + "</span>";
+  } else if(durF){
+    const d = fmtDur(durationMin(r,durF));
+    if(d) bdg = '<span class="badge'+(hl?" hl":"")+'">'+esc(d)+"</span>";
+  }
+  const rows = cfg.fields.map(f=>{
+    if(f.id === cfg.titleField) return "";
+    const v = displayValue(r,f);
+    if(v === "") return "";
+    return '<div class="row"><span class="k">'+esc(f.name)+'</span><span class="v">'+esc(v)+"</span></div>";
+  }).join("");
+  const stop = running
+    ? '<div class="btnrow"><button class="btn wide sm" onclick="stopNow(\''+r.id+'\',event)">Ukončiť teraz</button></div>'
+    : "";
+  return '<div class="card'+(running?" run":"")+(hl?" hl":"")+'" onclick="openRecordForm(\''+r.id+'\')">'
+    + '<div class="rec-head"><span class="rec-title">'+esc(ttl)+"</span>" + bdg + "</div>"
+    + rows + stop + "</div>";
+}
+
+function displayValue(rec, f){
+  if(f.type === "duration") { const m = durationMin(rec,f); return m===null ? "" : fmtDur(m); }
+  const v = rec.values[f.id];
+  if(v === undefined || v === null || v === "") return "";
+  if(f.type === "datetime") return fmtDT(v);
+  return String(v);
+}
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ============================================================
+   FORMULÁR PRESTOJA
+   ============================================================ */
+function openModal(html){
+  $("modalHost").innerHTML = '<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">'+html+"</div></div>";
+}
+function closeModal(){ $("modalHost").innerHTML = ""; }
+
+function openRecordForm(id){
+  const rec = id ? records.find(r=>r.id===id) : null;
+  const vals = rec ? rec.values : {};
+  const ef = endFieldId();
+  let html = "<h2>" + (rec ? "Upraviť prestoj" : "Nový prestoj") + "</h2>";
+
+  cfg.fields.forEach(f=>{
+    const v = vals[f.id] !== undefined ? vals[f.id] : "";
+    const req = f.required && f.id !== ef;
+    html += '<label class="f"><span>'+esc(f.name)+(req?" *":"")+"</span>";
+    if(f.type === "text"){
+      html += '<input type="text" id="in_'+f.id+'" value="'+esc(v)+'">';
+    } else if(f.type === "number"){
+      html += '<input type="number" step="any" inputmode="decimal" id="in_'+f.id+'" value="'+esc(v)+'">';
+    } else if(f.type === "datetime"){
+      html += '<div class="inline"><input type="datetime-local" id="in_'+f.id+'" value="'+esc(v)+'" oninput="recalcDur()">'
+            + '<button type="button" class="btn sec sm" onclick="setNow(\''+f.id+'\')">Teraz</button></div>';
+    } else if(f.type === "duration"){
+      html += '<input type="text" inputmode="numeric" placeholder="napr. 1:30 alebo 90" id="in_'+f.id
+            + '" value="" oninput="durEdited(\''+f.id+'\')">';
+    }
+    html += "</label>";
+    if(f.id === ef){
+      html += '<div class="hint">Nechaj prázdne = prestoj práve prebieha, ukončíš ho neskôr.</div>';
+    }
+    if(f.type === "duration"){
+      html += '<div class="hint">Zadaj koniec a čas sa dopočíta – alebo zadaj čas a dopočíta sa koniec.</div>';
+    }
+  });
+
+  html += '<div class="btnrow"><button class="btn sec" onclick="closeModal()">Zrušiť</button>'
+        + '<button class="btn" onclick="saveRecord('+(rec?"'"+rec.id+"'":"null")+')">Uložiť</button></div>';
+  if(rec){
+    html += '<div class="btnrow"><button class="btn danger wide" onclick="deleteRecord(\''+rec.id+'\')">Vymazať prestoj</button></div>';
+  }
+  openModal(html);
+
+  // predvyplnenie času pri novom zázname
+  if(!rec){
+    const dts = cfg.fields.filter(f=>f.type==="datetime");
+    if(dts.length) $("in_"+dts[0].id).value = nowLocalInput();
+  }
+  recalcDur();
+}
+function setNow(fid){ $("in_"+fid).value = nowLocalInput(); recalcDur(); }
+
+// koniec -> trvanie
+function recalcDur(){
+  cfg.fields.filter(f=>f.type==="duration").forEach(f=>{
+    const el = $("in_"+f.id); if(!el) return;
+    const a = $("in_"+f.from), b = $("in_"+f.to);
+    if(!a || !b){ el.value=""; return; }
+    const x = parseLocal(a.value), y = parseLocal(b.value);
+    el.value = (x && y) ? fmtDur(Math.round((y-x)/60000)) : "";
+  });
+}
+// trvanie -> koniec
+function durEdited(fid){
+  const f = fieldById(fid); if(!f || f.type!=="duration") return;
+  const el = $("in_"+fid), a = $("in_"+f.from), b = $("in_"+f.to);
+  if(!el || !a || !b) return;
+  const raw = el.value.trim();
+  if(raw === ""){ b.value = ""; return; }        // vymazané trvanie = prestoj prebieha
+  const min = parseDurInput(raw);
+  if(min === null || min < 0) return;            // rozpísaná hodnota, počkáme
+  if(!a.value){ toast("Najprv zadaj začiatok prestoja"); return; }
+  b.value = plusMin(a.value, min);
+}
+function saveRecord(id){
+  const values = {};
+  const ef = endFieldId();
+  const startF = startFieldId();
+  for(const f of cfg.fields){
+    if(f.type === "duration") continue;
+    const el = $("in_"+f.id);
+    const v  = el ? el.value.trim() : "";
+    if(f.required && !v && f.id !== ef){ toast("Vyplň pole: "+f.name); return; }
+    values[f.id] = v;
+  }
+  if(startF && !values[startF]){ toast("Začiatok prestoja je povinný"); return; }
+  if(startF && ef && values[ef]){
+    const a = parseLocal(values[startF]), b = parseLocal(values[ef]);
+    if(a && b && b < a){ toast("Koniec prestoja je skôr ako začiatok"); return; }
+  }
+  if(id){
+    const r = records.find(x=>x.id===id);
+    r.values = values;
+    r.updatedAt = new Date().toISOString();
+  } else {
+    records.push({ id:uid("r_"), values:values,
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), deleted:false });
+  }
+  saveRec(); syncSoon(); closeModal(); renderAll();
+  toast(id ? "Prestoj upravený" : "Prestoj zapísaný");
+}
+function deleteRecord(id){
+  if(!confirm("Naozaj vymazať tento prestoj?")) return;
+  const r = records.find(x=>x.id===id);
+  if(r){ r.deleted = true; r.updatedAt = new Date().toISOString(); }
+  saveRec(); syncSoon(); closeModal(); renderAll(); toast("Vymazané");
+}
+
+/* ============================================================
+   NASTAVENIA
+   ============================================================ */
+const TYPE_LABEL = { text:"Text", number:"Číslo", datetime:"Dátum a čas", duration:"Trvanie (automaticky)" };
+
+function renderSettings(){
+  syncExportOrder();
+  let h = "";
+
+  /* Polia */
+  h += '<div class="sec-title">Polia formulára</div>';
+  h += '<div class="card">';
+  cfg.fields.forEach((f,i)=>{
+    h += '<div class="item">'
+      +  '<div class="ord"><button onclick="moveField('+i+',-1)">▲</button><button onclick="moveField('+i+',1)">▼</button></div>'
+      +  '<div class="txt"><b>'+esc(f.name)+'</b><small>'+TYPE_LABEL[f.type]+(f.required?" · povinné":"")+"</small></div>"
+      +  '<button class="iconbtn" onclick="openFieldForm(\''+f.id+'\')">✎</button>'
+      +  '<button class="iconbtn" onclick="deleteField(\''+f.id+'\')">🗑</button>'
+      +  "</div>";
+  });
+  h += '<button class="btn wide sm" onclick="openFieldForm(null)">+ Pridať pole</button></div>';
+
+  /* Zmeny */
+  h += '<div class="sec-title">Pracovné zmeny</div>';
+  h += '<div class="card">';
+  cfg.shifts.forEach(s=>{
+    h += '<div class="item"><div class="txt"><b>'+esc(s.name)+"</b><small>"+s.start+" – "+s.end
+      +  (s.end <= s.start ? " (cez polnoc)" : "") + "</small></div>"
+      +  '<button class="iconbtn" onclick="openShiftForm(\''+s.id+'\')">✎</button>'
+      +  '<button class="iconbtn" onclick="deleteShift(\''+s.id+'\')">🗑</button></div>';
+  });
+  h += '<button class="btn wide sm" onclick="openShiftForm(null)">+ Pridať zmenu</button></div>';
+
+  /* Zobrazenie */
+  const dtFields = cfg.fields.filter(f=>f.type==="datetime");
+  h += '<div class="sec-title">Zobrazenie</div><div class="card">';
+  h += '<label class="f"><span>Prestoj patrí do zmeny podľa poľa</span><select onchange="cfg.filterField=this.value;saveCfg();renderAll()">'
+    +  dtFields.map(f=>'<option value="'+f.id+'"'+(cfg.filterField===f.id?" selected":"")+">"+esc(f.name)+"</option>").join("")
+    +  "</select></label>";
+  h += '<div class="hint">Napr. „Koniec prestoja“ – v zmene 06:00–14:00 sa zobrazia prestoje ukončené v tomto čase.</div>';
+  h += '<label class="f"><span>Nadpis kartičky prestoja</span><select onchange="cfg.titleField=this.value;saveCfg();renderAll()">'
+    +  cfg.fields.map(f=>'<option value="'+f.id+'"'+(cfg.titleField===f.id?" selected":"")+">"+esc(f.name)+"</option>").join("")
+    +  "</select></label></div>";
+
+  /* Zvýraznenie dlhých prestojov */
+  h += '<div class="sec-title">Zvýraznenie dlhých prestojov</div><div class="card">';
+  h += '<label class="f"><span>Zvýrazniť prestoje od (minút)</span>'
+    +  '<input type="number" min="0" step="1" inputmode="numeric" value="'+(parseInt(cfg.highlightMin)||0)+'" '
+    +  'onchange="setHighlight(this.value)"></label>';
+  h += '<div class="hint">0 = vypnuté. Napr. <b>30</b> zvýrazní každý prestoj s dĺžkou 30 minút a viac (vrátane). '
+    +  'Zvýraznené sú červene v zozname aj v exportovanom exceli.</div>';
+  h += '<label class="chk"><input type="checkbox" '+(cfg.highlightRunning!==false?"checked":"")
+    +  ' onchange="cfg.highlightRunning=this.checked;saveCfg();renderAll()"> '
+    +  "Zvýrazniť aj prebiehajúce prestoje po prekročení limitu</label>";
+  h += "</div>";
+
+  /* Export */
+  h += '<div class="sec-title">Export do Excelu</div><div class="card">';
+  h += '<div class="hint">Poradie riadkov = poradie stĺpcov v exceli. Odškrtnuté polia sa neexportujú.</div>';
+  cfg.exportOrder.forEach((fid,i)=>{
+    const f = fieldById(fid); if(!f) return;
+    const on = !cfg.exportSkip.includes(fid);
+    h += '<div class="item">'
+      +  '<div class="ord"><button onclick="moveExport('+i+',-1)">▲</button><button onclick="moveExport('+i+',1)">▼</button></div>'
+      +  '<div class="txt"><b>'+(i+1)+". "+esc(f.name)+"</b><small>"+TYPE_LABEL[f.type]+"</small></div>"
+      +  '<input type="checkbox" style="width:22px;height:22px" '+(on?"checked":"")+' onchange="toggleExport(\''+fid+'\')">'
+      +  "</div>";
+  });
+  h += '<label class="f"><span>Formát dátumu a času</span><select onchange="cfg.dtFormat=this.value;saveCfg()">'
+    +  '<option value="excel"'+(cfg.dtFormat==="excel"?" selected":"")+">Excel dátum (dá sa počítať)</option>"
+    +  '<option value="text"'+(cfg.dtFormat==="text"?" selected":"")+">Text (01.08.2026 06:30)</option></select></label>";
+  h += '<label class="f"><span>Formát trvania</span><select onchange="cfg.durFormat=this.value;saveCfg()">'
+    +  '<option value="excel"'+(cfg.durFormat==="excel"?" selected":"")+">Excel čas [h]:mm (dá sa sčítať)</option>"
+    +  '<option value="min"'+(cfg.durFormat==="min"?" selected":"")+">Počet minút</option>"
+    +  '<option value="text"'+(cfg.durFormat==="text"?" selected":"")+">Text (1:30)</option></select></label>";
+  h += '<label class="f"><span>Názov súboru</span><input type="text" value="'+esc(cfg.fileName)+'" onchange="cfg.fileName=this.value||\'prestoje\';saveCfg()"></label>';
+  h += "</div>";
+
+  /* Zdieľanie */
+  h += '<div class="sec-title">Zdieľanie (Google Sheets)</div><div class="card">';
+  h += '<label class="chk"><input type="checkbox" '+(syncCfg.on?"checked":"")
+    +  ' onchange="setSyncOn(this.checked)"> Zdieľať dáta s tímom</label>';
+  h += '<label class="f"><span>Adresa Apps Script aplikácie (…/exec)</span>'
+    +  '<input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/.../exec" '
+    +  'value="'+esc(syncCfg.url)+'" onchange="setSyncUrl(this.value)"></label>';
+  h += '<div class="btnrow"><button class="btn sec" onclick="syncNow(false)">Synchronizovať teraz</button>'
+    +  '<button class="btn sec" onclick="openSyncHelp()">Návod</button></div>';
+  // lastAt je ISO v UTC – prevedieme cez Date, nie orezaním textu
+  const st = syncCfg.lastAt ? "Naposledy: " + fmtDate(new Date(syncCfg.lastAt)) : "Zatiaľ nesynchronizované";
+  h += '<div class="hint" style="margin-top:10px">' + esc(st)
+    +  (syncCfg.lastErr ? '<br><b style="color:#b91c1c">Chyba: '+esc(syncCfg.lastErr)+"</b>" : "") + "</div>";
+  h += '<div class="hint">Zapisovať sa dá aj bez signálu – zmeny sa odošlú, keď je pripojenie späť. '
+    +  "Zdieľajú sa aj nastavenia polí a zmien, takže ich stačí nastaviť na jednom telefóne.</div>";
+  h += "</div>";
+
+  /* Dáta */
+  h += '<div class="sec-title">Dáta</div><div class="card">';
+  h += '<div class="hint">Údaje sú uložené v telefóne. Zálohu si občas ulož do súboru.</div>';
+  h += '<div class="btnrow"><button class="btn sec" onclick="backupJSON()">Záloha</button>'
+    +  '<button class="btn sec" onclick="restoreJSON()">Obnoviť zo zálohy</button></div>';
+  h += '<div class="btnrow"><button class="btn danger wide" onclick="wipeRecords()">Vymazať všetky prestoje ('+live().length+')</button></div>';
+  h += "</div>";
+
+  $("viewSettings").innerHTML = h;
+}
+
+/* --- polia --- */
+function moveField(i,d){
+  const j = i+d; if(j<0 || j>=cfg.fields.length) return;
+  const t = cfg.fields[i]; cfg.fields[i] = cfg.fields[j]; cfg.fields[j] = t;
+  saveCfg(); renderAll();
+}
+function deleteField(id){
+  if(cfg.fields.length <= 1){ toast("Musí zostať aspoň jedno pole"); return; }
+  const used = cfg.fields.some(f=>f.type==="duration" && (f.from===id||f.to===id));
+  if(used){ toast("Toto pole používa výpočet trvania"); return; }
+  if(!confirm("Vymazať pole? Hodnoty v už zapísaných prestojoch sa prestanú zobrazovať.")) return;
+  cfg.fields = cfg.fields.filter(f=>f.id!==id);
+  if(cfg.filterField===id){ const d = cfg.fields.find(f=>f.type==="datetime"); cfg.filterField = d?d.id:null; }
+  if(cfg.titleField===id) cfg.titleField = cfg.fields[0].id;
+  syncExportOrder(); saveCfg(); renderAll();
+}
+function openFieldForm(id){
+  const f = id ? fieldById(id) : { id:null, name:"", type:"text", required:false, from:"", to:"" };
+  const dts = cfg.fields.filter(x=>x.type==="datetime");
+  let h = "<h2>" + (id ? "Upraviť pole" : "Nové pole") + "</h2>";
+  h += '<label class="f"><span>Názov (nadpis stĺpca)</span><input type="text" id="fn" value="'+esc(f.name)+'"></label>';
+  h += '<label class="f"><span>Typ</span><select id="ft" onchange="toggleDurCfg()">'
+    +  Object.keys(TYPE_LABEL).map(t=>'<option value="'+t+'"'+(f.type===t?" selected":"")+">"+TYPE_LABEL[t]+"</option>").join("")
+    +  "</select></label>";
+  h += '<div id="durcfg" class="'+(f.type==="duration"?"":"hidden")+'">'
+    +  '<label class="f"><span>Počítať od poľa</span><select id="ffrom">'
+    +  dts.map(x=>'<option value="'+x.id+'"'+(f.from===x.id?" selected":"")+">"+esc(x.name)+"</option>").join("")+"</select></label>"
+    +  '<label class="f"><span>Počítať do poľa</span><select id="fto">'
+    +  dts.map(x=>'<option value="'+x.id+'"'+(f.to===x.id?" selected":"")+">"+esc(x.name)+"</option>").join("")+"</select></label>"
+    +  (dts.length<2 ? '<div class="hint">Najprv vytvor dve polia typu „Dátum a čas“.</div>' : "")
+    +  "</div>";
+  h += '<label class="chk"><input type="checkbox" id="freq" '+(f.required?"checked":"")+"> Povinné pole</label>";
+  h += '<div class="btnrow"><button class="btn sec" onclick="closeModal()">Zrušiť</button>'
+    +  '<button class="btn" onclick="saveField('+(id?"'"+id+"'":"null")+')">Uložiť</button></div>';
+  openModal(h);
+}
+function toggleDurCfg(){ $("durcfg").className = $("ft").value==="duration" ? "" : "hidden"; }
+function saveField(id){
+  const name = $("fn").value.trim();
+  const type = $("ft").value;
+  if(!name){ toast("Zadaj názov poľa"); return; }
+  let from = "", to = "";
+  if(type === "duration"){
+    from = $("ffrom") ? $("ffrom").value : "";
+    to   = $("fto")   ? $("fto").value   : "";
+    if(!from || !to || from === to){ toast("Vyber dve rôzne polia s dátumom a časom"); return; }
+  }
+  const req = $("freq").checked;
+  if(id){
+    const f = fieldById(id);
+    f.name = name; f.type = type; f.required = req;
+    if(type === "duration"){ f.from = from; f.to = to; } else { delete f.from; delete f.to; }
+  } else {
+    const nf = { id:uid("f_"), name:name, type:type, required:req };
+    if(type === "duration"){ nf.from = from; nf.to = to; }
+    cfg.fields.push(nf);
+    if(type === "datetime" && !cfg.filterField) cfg.filterField = nf.id;
+  }
+  syncExportOrder(); saveCfg(); closeModal(); renderAll(); toast("Uložené");
+}
+
+/* --- zmeny --- */
+function openShiftForm(id){
+  const s = id ? cfg.shifts.find(x=>x.id===id) : { name:"", start:"06:00", end:"14:00" };
+  let h = "<h2>" + (id ? "Upraviť zmenu" : "Nová zmena") + "</h2>";
+  h += '<label class="f"><span>Názov</span><input type="text" id="sn" value="'+esc(s.name)+'" placeholder="napr. Ranná"></label>';
+  h += '<label class="f"><span>Od</span><input type="time" id="ss" value="'+s.start+'"></label>';
+  h += '<label class="f"><span>Do</span><input type="time" id="se" value="'+s.end+'"></label>';
+  h += '<div class="hint">Ak je „Do“ skôr ako „Od“ (napr. 22:00 – 06:00), zmena prechádza cez polnoc.</div>';
+  h += '<div class="btnrow"><button class="btn sec" onclick="closeModal()">Zrušiť</button>'
+    +  '<button class="btn" onclick="saveShift('+(id?"'"+id+"'":"null")+')">Uložiť</button></div>';
+  openModal(h);
+}
+function saveShift(id){
+  const name = $("sn").value.trim() || "Zmena";
+  const st = $("ss").value, en = $("se").value;
+  if(!st || !en){ toast("Zadaj čas od a do"); return; }
+  if(id){ const s = cfg.shifts.find(x=>x.id===id); s.name=name; s.start=st; s.end=en; }
+  else { const ns = { id:uid("s_"), name:name, start:st, end:en }; cfg.shifts.push(ns); }
+  saveCfg(); closeModal(); renderAll(); toast("Uložené");
+}
+function deleteShift(id){
+  if(!confirm("Vymazať túto zmenu?")) return;
+  cfg.shifts = cfg.shifts.filter(s=>s.id!==id);
+  if(view.shiftId === id) view = findCurrentShift();
+  saveCfg(); renderAll();
+}
+
+/* --- export nastavenia --- */
+function moveExport(i,d){
+  const j = i+d; if(j<0 || j>=cfg.exportOrder.length) return;
+  const t = cfg.exportOrder[i]; cfg.exportOrder[i] = cfg.exportOrder[j]; cfg.exportOrder[j] = t;
+  saveCfg(); renderSettings();
+}
+function setSyncOn(on){
+  syncCfg.on = !!on; saveSyncCfg(); renderAll();
+  if(on && syncCfg.url) syncNow(false);
+  else if(on) toast("Vlož ešte adresu Apps Script aplikácie");
+}
+function setSyncUrl(v){
+  syncCfg.url = String(v||"").trim(); saveSyncCfg();
+  if(syncCfg.url && !/\/exec\s*$/.test(syncCfg.url)) toast("Adresa má končiť na /exec");
+  if(syncCfg.on && syncCfg.url) syncNow(false);
+}
+function openSyncHelp(){
+  openModal("<h2>Ako zapnúť zdieľanie</h2>"
+    + '<div style="font-size:14px;line-height:1.55">'
+    + "<b>1.</b> Vytvor nový Google Sheet (napr. „Prestoje – dáta“).<br><br>"
+    + "<b>2.</b> V ňom choď na <b>Rozšírenia → Apps Script</b>.<br><br>"
+    + "<b>3.</b> Vymaž obsah editora a vlož doň celý súbor <b>google-apps-script.gs</b> "
+    + "(je v priečinku s aplikáciou). Ulož.<br><br>"
+    + "<b>4.</b> Klikni <b>Nasadiť → Nová implementácia</b>, typ <b>Webová aplikácia</b>, "
+    + "„Spustiť ako: <b>Ja</b>“, „Kto má prístup: <b>Ktokoľvek</b>“.<br><br>"
+    + "<b>5.</b> Povoľ prístup k účtu a skopíruj adresu končiacu na <b>/exec</b>.<br><br>"
+    + "<b>6.</b> Adresu vlož sem do nastavení a zapni „Zdieľať dáta s tímom“. "
+    + "Rovnakú adresu zadaj na ostatných telefónoch.<br><br>"
+    + '<span style="color:#b91c1c"><b>Pozor:</b> kto pozná túto adresu, môže dáta čítať aj zapisovať. '
+    + "Neposielaj ju mimo tímu.</span></div>"
+    + '<div class="btnrow"><button class="btn wide" onclick="closeModal()">Rozumiem</button></div>');
+}
+function setHighlight(v){
+  cfg.highlightMin = Math.max(0, parseInt(v) || 0);
+  saveCfg(); renderAll();
+  toast(cfg.highlightMin ? "Zvýrazňujem prestoje od "+fmtDur(cfg.highlightMin)+" h" : "Zvýrazňovanie vypnuté");
+}
+function toggleExport(fid){
+  if(cfg.exportSkip.includes(fid)) cfg.exportSkip = cfg.exportSkip.filter(x=>x!==fid);
+  else cfg.exportSkip.push(fid);
+  saveCfg();
+}
+
+/* --- záloha --- */
+function backupJSON(){
+  const blob = new Blob([JSON.stringify({cfg:cfg, records:records}, null, 2)], {type:"application/json"});
+  download(blob, "prestoje_zaloha_"+todayStr()+".json");
+}
+function restoreJSON(){
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".json,application/json";
+  inp.onchange = () => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      try{
+        const d = JSON.parse(fr.result);
+        if(d.cfg) cfg = d.cfg;
+        if(d.records) records = d.records;
+        saveCfg(); saveRec(); view = findCurrentShift(); renderAll(); toast("Obnovené zo zálohy");
+      }catch(e){ toast("Súbor sa nepodarilo načítať"); }
+    };
+    fr.readAsText(inp.files[0]);
+  };
+  inp.click();
+}
+function wipeRecords(){
+  if(!confirm("Naozaj vymazať VŠETKY zapísané prestoje? Nastavenia zostanú.")) return;
+  const t = new Date().toISOString();
+  records.forEach(r=>{ r.deleted = true; r.updatedAt = t; });
+  saveRec(); syncSoon(); renderAll(); toast("Prestoje vymazané");
+}
+
+/* ============================================================
+   ZDIEĽANIE CEZ GOOGLE SHEETS
+   Lokálne dáta sú vždy hlavné, synchronizácia ich len zlučuje.
+   Pri konflikte vyhráva novšia zmena (podľa updatedAt).
+   ============================================================ */
+let syncCfg   = load(LS_SYNC, { url:"", on:false, lastAt:"", lastErr:"" });
+let syncBusy  = false;
+let syncTimer = null;
+
+function saveSyncCfg(){ localStorage.setItem(LS_SYNC, JSON.stringify(syncCfg)); }
+
+// odloží synchronizáciu o 2 s – viac rýchlych zmien sa pošle naraz
+function syncSoon(){
+  if(!syncCfg.on || !syncCfg.url) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(()=>syncNow(true), 2000);
+}
+
+function pushRecord(r){
+  const vals = Object.assign({}, r.values);
+  cfg.fields.filter(f=>f.type==="duration").forEach(f=>{
+    const m = durationMin(r,f);
+    vals[f.id] = (m===null ? "" : m);        // trvanie posielame v minútach
+  });
+  return { id:r.id, updatedAt:r.updatedAt||r.createdAt||"", deleted:!!r.deleted, values:vals };
+}
+
+async function syncNow(silent){
+  if(!syncCfg.on || !syncCfg.url){ if(!silent) toast("Zdieľanie nie je zapnuté"); return; }
+  if(syncBusy) return;
+  syncBusy = true; renderSyncChip();
+  try{
+    const payload = {
+      cfg: cfg,
+      cfgUpdatedAt: cfg.cfgUpdatedAt || "",
+      fields: cfg.fields.map(f=>({ id:f.id, name:f.name, type:f.type })),
+      records: records.map(pushRecord)
+    };
+    // text/plain zámerne – vyhne sa CORS preflightu, ktorý Apps Script nezvláda
+    const res = await fetch(syncCfg.url, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      redirect:"follow"
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || "server vrátil chybu");
+    mergeRemote(data);
+    syncCfg.lastAt = new Date().toISOString();
+    syncCfg.lastErr = "";
+    if(!silent) toast("Synchronizované");
+  }catch(err){
+    syncCfg.lastErr = String(err.message || err);
+    if(!silent) toast("Synchronizácia zlyhala: " + syncCfg.lastErr);
+  }
+  saveSyncCfg(); syncBusy = false; renderAll();
+}
+
+function mergeRemote(data){
+  const byId = {};
+  records.forEach(r=>{ byId[r.id] = r; });
+  (data.records||[]).forEach(rr=>{
+    if(!rr || !rr.id) return;
+    const loc = byId[rr.id];
+    if(loc && String(loc.updatedAt||"") >= String(rr.updatedAt||"")) return;  // lokálna verzia je novšia
+    const vals = rr.values || {};
+    cfg.fields.filter(f=>f.type==="duration").forEach(f=>{ delete vals[f.id]; }); // dopočíta sa
+    byId[rr.id] = {
+      id: rr.id, values: vals, deleted: !!rr.deleted,
+      updatedAt: rr.updatedAt || "",
+      createdAt: loc ? loc.createdAt : (rr.updatedAt || "")
+    };
+  });
+  records = Object.keys(byId).map(k=>byId[k]);
+  saveRec();
+
+  if(data.cfg && String(data.cfgUpdatedAt||"") > String(cfg.cfgUpdatedAt||"")){
+    cfg = data.cfg;
+    cfg.cfgUpdatedAt = data.cfgUpdatedAt;
+    syncExportOrder(); persistCfg();
+  }
+}
+
+function syncStatusText(){
+  if(!syncCfg.on || !syncCfg.url) return "";
+  if(syncBusy) return "synchronizujem…";
+  if(syncCfg.lastErr) return "⚠ nesynchronizované";
+  if(syncCfg.lastAt){
+    const d = new Date(syncCfg.lastAt);
+    return "✓ zdieľané · " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  return "zdieľanie zapnuté";
+}
+function renderSyncChip(){
+  const el = $("syncChip");
+  if(el) el.textContent = syncStatusText();
+}
+
+/* ============================================================
+   EXPORT DO XLSX (bez knižníc)
+   ============================================================ */
+function openExportDialog(){
+  let h = "<h2>Export do Excelu</h2>";
+  h += '<label class="f"><span>Rozsah</span><select id="exRange" onchange="exRangeChange()">'
+    +  '<option value="shift">Zobrazená zmena</option>'
+    +  '<option value="day">Celý deň ('+view.date+")</option>"
+    +  '<option value="range">Rozsah dátumov</option>'
+    +  '<option value="all">Všetky zapísané prestoje</option></select></label>';
+  h += '<div id="exDates" class="hidden">'
+    +  '<label class="f"><span>Od dátumu</span><input type="date" id="exFrom" value="'+view.date+'"></label>'
+    +  '<label class="f"><span>Do dátumu (vrátane)</span><input type="date" id="exTo" value="'+view.date+'"></label></div>';
+  h += '<div class="hint">Stĺpce a ich poradie zmeníš v Nastaveniach → Export do Excelu.</div>';
+  h += '<div class="btnrow"><button class="btn sec" onclick="closeModal()">Zrušiť</button>'
+    +  '<button class="btn" onclick="doExport()">Exportovať</button></div>';
+  openModal(h);
+}
+function exRangeChange(){ $("exDates").className = $("exRange").value==="range" ? "" : "hidden"; }
+
+function doExport(){
+  const mode = $("exRange").value;
+  let list, label;
+  if(mode === "shift"){
+    list = recordsIn(currentWindow());
+    const sh = cfg.shifts.find(s=>s.id===view.shiftId);
+    label = view.date + (sh ? "_" + sh.name.replace(/\s+/g,"") : "_celyden");
+  } else if(mode === "day"){
+    const s = parseLocal(view.date+"T00:00");
+    list = recordsIn([s, new Date(s.getTime()+86400000)]);
+    label = view.date;
+  } else if(mode === "range"){
+    const a = $("exFrom").value, b = $("exTo").value;
+    const s = parseLocal(a+"T00:00"), e = new Date(parseLocal(b+"T00:00").getTime()+86400000);
+    list = recordsIn([s,e]);
+    label = a+"_"+b;
+  } else {
+    const ff = cfg.filterField;
+    list = live().slice().sort((x,y)=> (parseLocal(y.values[ff])||0) - (parseLocal(x.values[ff])||0));
+    label = "vsetko";
+  }
+  if(!list.length){ toast("V tomto rozsahu nie sú žiadne prestoje"); return; }
+  list = list.slice().reverse(); // v exceli od najstaršieho po najnovší
+
+  syncExportOrder();
+  const cols = cfg.exportOrder.filter(id=>!cfg.exportSkip.includes(id)).map(fieldById).filter(Boolean);
+  if(!cols.length){ toast("V nastaveniach nie je vybraný žiadny stĺpec"); return; }
+
+  const rows = [];
+  rows.push(cols.map(f=>({ v:f.name, t:"s", s:1 })));
+  list.forEach(r=>{
+    const hl = recHighlighted(r);
+    rows.push(cols.map(f=>cellFor(r,f,hl)));
+  });
+
+  const blob = buildXlsx(rows, cols.map(f=>Math.max(12, Math.min(30, f.name.length+4))));
+  download(blob, (cfg.fileName||"prestoje") + "_" + label + ".xlsx");
+  closeModal();
+  toast("Vyexportované: " + list.length + " riadkov");
+}
+
+// štýly: 0 bežný, 1 hlavička, 2 dátum, 3 trvanie, 4 trvanie zvýraznené,
+//        5 bežný zvýraznený, 6 dátum zvýraznený
+function cellFor(rec, f, hl){
+  const S = { plain: hl?5:0, dt: hl?6:2, dur: hl?4:3 };
+  if(f.type === "duration"){
+    const m = durationMin(rec,f);
+    if(m === null) return { v:"", t:"s", s:S.plain };
+    if(cfg.durFormat === "excel") return { v:m/1440, t:"n", s:S.dur };
+    if(cfg.durFormat === "min")   return { v:m,      t:"n", s:S.plain };
+    return { v:fmtDur(m), t:"s", s:S.plain };
+  }
+  const raw = rec.values[f.id];
+  if(raw === undefined || raw === null || raw === "") return { v:"", t:"s", s:S.plain };
+  if(f.type === "datetime"){
+    if(cfg.dtFormat === "excel"){
+      const d = parseLocal(raw);
+      if(!d) return { v:String(raw), t:"s", s:S.plain };
+      const serial = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes())/86400000 + 25569;
+      return { v:serial, t:"n", s:S.dt };
+    }
+    return { v:fmtDT(raw), t:"s", s:S.plain };
+  }
+  if(f.type === "number"){
+    const n = parseFloat(String(raw).replace(",","."));
+    return isNaN(n) ? { v:String(raw), t:"s", s:S.plain } : { v:n, t:"n", s:S.plain };
+  }
+  return { v:String(raw), t:"s", s:S.plain };
+}
+
+function colName(n){ // 0 -> A
+  let s = "";
+  n += 1;
+  while(n > 0){ const m = (n-1) % 26; s = String.fromCharCode(65+m) + s; n = Math.floor((n-1)/26); }
+  return s;
+}
+function xmlEsc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"");
+}
+function buildXlsx(rows, widths){
+  let sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+    + "<cols>" + widths.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join("") + "</cols>"
+    + "<sheetData>";
+  rows.forEach((row,ri)=>{
+    sheet += '<row r="'+(ri+1)+'">';
+    row.forEach((c,ci)=>{
+      const ref = colName(ci)+(ri+1);
+      const st  = c.s ? ' s="'+c.s+'"' : "";
+      if(c.t === "n" && c.v !== "" && c.v !== null){
+        sheet += '<c r="'+ref+'"'+st+'><v>'+c.v+"</v></c>";
+      } else if(c.v === "" || c.v === null || c.v === undefined){
+        sheet += '<c r="'+ref+'"'+st+"/>";
+      } else {
+        sheet += '<c r="'+ref+'"'+st+' t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(c.v)+"</t></is></c>";
+      }
+    });
+    sheet += "</row>";
+  });
+  sheet += "</sheetData></worksheet>";
+
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<numFmts count="2"><numFmt numFmtId="164" formatCode="dd\\.mm\\.yyyy\\ hh:mm"/><numFmt numFmtId="165" formatCode="[h]:mm"/></numFmts>'
+    + '<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font>'
+    + '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>'
+    + '<font><b/><sz val="11"/><color rgb="FF991B1B"/><name val="Calibri"/></font></fonts>'
+    + '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
+    + '<fill><patternFill patternType="solid"><fgColor rgb="FF1E3A8A"/><bgColor indexed="64"/></patternFill></fill>'
+    + '<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill></fills>'
+    + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+    + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    + '<cellXfs count="7">'
+    + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+    + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+    + '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+    + '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+    + '<xf numFmtId="165" fontId="2" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>'
+    + '<xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+    + '<xf numFmtId="164" fontId="2" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>'
+    + "</cellXfs>"
+    + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+  const files = [
+    { name:"[Content_Types].xml", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      + "</Types>" },
+    { name:"_rels/.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+      + "</Relationships>" },
+    { name:"xl/workbook.xml", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<sheets><sheet name="Prestoje" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { name:"xl/_rels/workbook.xml.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+      + '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+      + "</Relationships>" },
+    { name:"xl/styles.xml", data:styles },
+    { name:"xl/worksheets/sheet1.xml", data:sheet }
+  ];
+  return zipStore(files);
+}
+
+/* --- minimalistický ZIP (bez kompresie) --- */
+const CRC_TABLE = (function(){
+  const t = new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c = n;
+    for(let k=0;k<8;k++) c = (c & 1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf){
+  let c = 0xFFFFFFFF;
+  for(let i=0;i<buf.length;i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c>>>8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(files){
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  files.forEach(f=>{
+    const nameB = enc.encode(f.name);
+    const dataB = enc.encode(f.data);
+    const crc = crc32(dataB), size = dataB.length;
+
+    const lh = new Uint8Array(30 + nameB.length);
+    const d1 = new DataView(lh.buffer);
+    d1.setUint32(0, 0x04034b50, true);
+    d1.setUint16(4, 20, true);
+    d1.setUint32(14, crc, true);
+    d1.setUint32(18, size, true);
+    d1.setUint32(22, size, true);
+    d1.setUint16(26, nameB.length, true);
+    lh.set(nameB, 30);
+    parts.push(lh, dataB);
+
+    const ch = new Uint8Array(46 + nameB.length);
+    const d2 = new DataView(ch.buffer);
+    d2.setUint32(0, 0x02014b50, true);
+    d2.setUint16(4, 20, true);
+    d2.setUint16(6, 20, true);
+    d2.setUint32(16, crc, true);
+    d2.setUint32(20, size, true);
+    d2.setUint32(24, size, true);
+    d2.setUint16(28, nameB.length, true);
+    d2.setUint32(42, offset, true);
+    ch.set(nameB, 46);
+    central.push(ch);
+
+    offset += lh.length + size;
+  });
+  const cdSize = central.reduce((a,b)=>a+b.length, 0);
+  const eocd = new Uint8Array(22);
+  const d3 = new DataView(eocd.buffer);
+  d3.setUint32(0, 0x06054b50, true);
+  d3.setUint16(8, files.length, true);
+  d3.setUint16(10, files.length, true);
+  d3.setUint32(12, cdSize, true);
+  d3.setUint32(16, offset, true);
+  return new Blob(parts.concat(central, [eocd]),
+    { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+function download(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 2000);
+}
+
+/* ============================================================
+   NAVIGÁCIA
+   ============================================================ */
+function setTab(t){
+  tab = t;
+  $("viewRecords").className  = t==="records" ? "" : "hidden";
+  $("viewSettings").className = t==="settings" ? "" : "hidden";
+  $("shiftbar").className     = t==="records" ? "shiftbar" : "shiftbar hidden";
+  $("sumline").className      = t==="records" ? "sumline"  : "sumline hidden";
+  $("fabAdd").style.display   = t==="records" ? "" : "none";
+  $("hdrTitle").textContent   = t==="records" ? "Prestoje" : "Nastavenia";
+  $("tabRecords").className   = t==="records" ? "on" : "";
+  $("tabSettings").className  = t==="settings" ? "on" : "";
+  renderAll();
+}
+function renderAll(){
+  if(tab === "records") renderRecords();
+  else renderSettings();
+  renderSyncChip();
+}
+let toastTimer = null;
+function toast(msg){
+  const el = $("toast");
+  el.textContent = msg; el.className = "toast show";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.className = "toast"; }, 2200);
+}
+
+$("fabAdd").onclick      = () => openRecordForm(null);
+$("tabRecords").onclick  = () => setTab("records");
+$("tabSettings").onclick = () => setTab("settings");
+$("tabExport").onclick   = () => { if(tab!=="records") setTab("records"); openExportDialog(); };
+$("prevShift").onclick   = () => stepShift(-1);
+$("nextShift").onclick   = () => stepShift(1);
+$("viewDate").onchange   = e => { view.date = e.target.value; renderAll(); };
+$("viewShift").onchange  = e => { view.shiftId = e.target.value; renderAll(); };
+
+// doplnenie polí, ktoré staršie záznamy nemajú (kvôli zdieľaniu)
+(function migrate(){
+  let changed = false;
+  records.forEach(r=>{
+    if(!r.updatedAt){ r.updatedAt = r.createdAt || new Date().toISOString(); changed = true; }
+    if(r.deleted === undefined){ r.deleted = false; changed = true; }
+  });
+  if(changed) saveRec();
+  if(!cfg.cfgUpdatedAt){ cfg.cfgUpdatedAt = new Date().toISOString(); }
+})();
+
+syncExportOrder();
+persistCfg();
+setTab("records");
+
+/* automatická synchronizácia */
+if(syncCfg.on && syncCfg.url) syncNow(true);
+setInterval(()=>{ if(!document.hidden) syncNow(true); }, 60000);
+window.addEventListener("online", ()=>syncNow(true));
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) syncNow(true); });
+
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
