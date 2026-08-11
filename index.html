@@ -1060,8 +1060,12 @@ function openExportDialog(){
     +  '<label class="f"><span>Od dátumu</span><input type="date" id="exFrom" value="'+view.date+'"></label>'
     +  '<label class="f"><span>Do dátumu (vrátane)</span><input type="date" id="exTo" value="'+view.date+'"></label></div>';
   h += '<div class="hint">Stĺpce a ich poradie sa nastavujú v Nastaveniach → Export do Excelu.</div>';
+  shareKind = decideShareKind();   // rozhodnuté teraz, nie až pri kliknutí
   h += '<div class="btnrow"><button class="btn" onclick="doExport(\'download\')">Stiahnuť</button>';
-  if(navigator.share) h += '<button class="btn sec" onclick="doExport(\'share\')">Zdieľať</button>';
+  if(shareKind !== "none"){
+    h += '<button class="btn sec" onclick="doExport(\'share\')">Zdieľať'
+      +  (shareKind === "csv" ? " (CSV)" : "") + "</button>";
+  }
   h += "</div>";
 
   h += '<div class="sec-title" style="margin-top:18px">Poslať e-mailom</div>';
@@ -1114,30 +1118,22 @@ async function doExport(action){
   const fname = (cfg.fileName||"prestoje") + "_" + label + ".xlsx";
 
   if(action === "share"){
-    // Chrome zdieľa len povolené typy súborov a .xlsx medzi ne nemusí patriť.
-    // Skúsime teda najprv excel, potom CSV a až nakoniec stiahneme.
-    const first = await tryShareFile(blob, fname, blob.type);
-    if(first === "ok" || first === "abort"){ closeModal(); return; }
-
-    if(first === "unsupported"){
-      const csv = new Blob(["﻿" + buildCsv(cols, list)], { type:"text/csv" });
-      const csvName = fname.replace(/\.xlsx$/, ".csv");
-      const second = await tryShareFile(csv, csvName, "text/csv");
-      if(second === "ok" || second === "abort"){
-        closeModal();
-        if(second === "ok") toast("Zdieľané ako CSV – .xlsx telefón zdieľať nedovolí");
-        return;
-      }
-    }
-    download(blob, fname);
-    closeModal();
-    if(first === "unsupported"){
-      toast("Prehliadač nedovolí zdieľať tento typ súboru, je stiahnutý do zariadenia");
-    } else if(first.indexOf("NotAllowedError") === 0){
-      // typické pre počítač – systémové zdieľanie súborov tam často chýba
-      toast("Prehliadač zdieľanie súborov nepovolil (na počítači väčšinou nefunguje, na telefóne áno). Súbor je stiahnutý.");
+    // Žiadne canShare ani iné volania – share() musí prísť hneď, kým platí gesto.
+    let file;
+    if(shareKind === "csv"){
+      file = new File([new Blob(["﻿" + buildCsv(cols, list)], { type:"text/csv" })],
+                      asciiName(fname).replace(/\.xlsx$/, ".csv"), { type:"text/csv" });
     } else {
-      toast("Zdieľanie zlyhalo (" + first + "), súbor je stiahnutý");
+      file = new File([blob], asciiName(fname), { type:XLSX_MIME });
+    }
+    try{
+      await navigator.share({ files:[file], title:file.name });
+      closeModal();
+    }catch(err){
+      if(err && err.name === "AbortError") return;      // používateľ len zavrel menu
+      download(blob, fname);
+      closeModal();
+      toast("Zdieľanie zlyhalo (" + (err.name||"") + ": " + (err.message||err) + "), súbor je stiahnutý");
     }
     return;
   }
@@ -1175,19 +1171,23 @@ async function doExport(action){
   toast("Vyexportované: " + list.length + " riadkov");
 }
 
-// vráti "ok" | "abort" | "unsupported" | text chyby
-async function tryShareFile(blob, name, mime){
-  if(!navigator.share) return "unsupported";
-  const file = new File([blob], name, { type:mime });
-  // canShare je synchrónne, takže neminie povolenie na otvorenie systémového menu
-  if(navigator.canShare && !navigator.canShare({ files:[file] })) return "unsupported";
+/* Chrome povolí zdieľanie len na základe gesta používateľa a volanie canShare()
+   toto povolenie spotrebuje. Preto sa typ súboru rozhodne vopred, pri otvorení
+   okna Export, a po kliknutí sa už volá priamo share(). */
+let shareKind = "xlsx";
+function decideShareKind(){
+  const probe = (n,m)=> new File([new Blob(["x"])], n, { type:m });
   try{
-    await navigator.share({ files:[file], title:name });
-    return "ok";
-  }catch(err){
-    if(err && err.name === "AbortError") return "abort";
-    return (err && (err.name || err.message)) ? (err.name + ": " + err.message) : String(err);
-  }
+    if(!navigator.share) return "none";
+    if(!navigator.canShare) return "xlsx";
+    if(navigator.canShare({ files:[probe("t.xlsx", XLSX_MIME)] })) return "xlsx";
+    if(navigator.canShare({ files:[probe("t.csv", "text/csv")] })) return "csv";
+    return "none";
+  }catch(e){ return "xlsx"; }
+}
+// názov bez diakritiky a medzier – niektoré aplikácie si s nimi neporadia
+function asciiName(s){
+  return String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9._-]+/g,"_");
 }
 
 // záložný formát pre zdieľanie – Excel ho otvorí, hodnoty sú v zobrazenej podobe
