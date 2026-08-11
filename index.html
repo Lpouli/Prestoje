@@ -971,14 +971,23 @@ function openExportDialog(){
   h += '<div id="exDates" class="hidden">'
     +  '<label class="f"><span>Od dátumu</span><input type="date" id="exFrom" value="'+view.date+'"></label>'
     +  '<label class="f"><span>Do dátumu (vrátane)</span><input type="date" id="exTo" value="'+view.date+'"></label></div>';
-  h += '<div class="hint">Stĺpce a ich poradie zmeníš v Nastaveniach → Export do Excelu.</div>';
-  h += '<div class="btnrow"><button class="btn sec" onclick="closeModal()">Zrušiť</button>'
-    +  '<button class="btn" onclick="doExport()">Exportovať</button></div>';
+  h += '<div class="hint">Stĺpce a ich poradie sa nastavujú v Nastaveniach → Export do Excelu.</div>';
+  h += '<div class="btnrow"><button class="btn" onclick="doExport(\'download\')">Stiahnuť</button>';
+  if(navigator.share) h += '<button class="btn sec" onclick="doExport(\'share\')">Zdieľať</button>';
+  h += "</div>";
+
+  h += '<div class="sec-title" style="margin-top:18px">Poslať e-mailom</div>';
+  h += '<label class="f"><span>Adresát (viac oddeľ čiarkou)</span>'
+    +  '<input type="text" inputmode="email" id="exMail" placeholder="meno@firma.sk" value="'+esc(cfg.mailTo||"")+'"></label>';
+  h += '<div class="btnrow"><button class="btn sec" onclick="closeModal()">Zavrieť</button>'
+    +  '<button class="btn" onclick="doExport(\'email\')">Odoslať</button></div>';
+  h += '<div class="hint">Odosiela sa cez tvoj Google účet z nasadeného Apps Scriptu, '
+    +  "takže stačí pripojenie na internet – e-mailový klient v telefóne netreba.</div>";
   openModal(h);
 }
 function exRangeChange(){ $("exDates").className = $("exRange").value==="range" ? "" : "hidden"; }
 
-function doExport(){
+async function doExport(action){
   const mode = $("exRange").value;
   let list, label;
   if(mode === "shift"){
@@ -1014,9 +1023,59 @@ function doExport(){
   });
 
   const blob = buildXlsx(rows, cols.map(f=>Math.max(12, Math.min(30, f.name.length+4))));
-  download(blob, (cfg.fileName||"prestoje") + "_" + label + ".xlsx");
+  const fname = (cfg.fileName||"prestoje") + "_" + label + ".xlsx";
+
+  if(action === "share"){
+    const file = new File([blob], fname, { type:blob.type });
+    try{
+      if(navigator.canShare && !navigator.canShare({ files:[file] })) throw new Error("nepodporované");
+      await navigator.share({ files:[file], title:fname });
+      closeModal();
+    }catch(err){
+      if(String(err.name) !== "AbortError"){ download(blob, fname); closeModal(); toast("Zdieľanie nešlo, súbor je stiahnutý"); }
+    }
+    return;
+  }
+
+  if(action === "email"){
+    const to = $("exMail").value.trim();
+    if(!to){ toast("Zadaj e-mailovú adresu"); return; }
+    if(!syncCfg.url){ toast("Najprv nastav zdieľanie cez Google Sheets"); return; }
+    if(to !== (cfg.mailTo||"")){ cfg.mailTo = to; saveCfg(); }
+    toast("Odosielam…");
+    try{
+      const res = await fetch(syncCfg.url, {
+        method:"POST",
+        headers:{ "Content-Type":"text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action:"email", to:to, filename:fname,
+          subject:"Prestoje – " + label,
+          note:"Počet prestojov: " + list.length,
+          fileBase64: await blobToBase64(blob)
+        }),
+        redirect:"follow"
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || "server vrátil chybu");
+      closeModal();
+      toast("Odoslané na " + to);
+    }catch(err){
+      toast("Odoslanie zlyhalo: " + (err.message||err));
+    }
+    return;
+  }
+
+  download(blob, fname);
   closeModal();
   toast("Vyexportované: " + list.length + " riadkov");
+}
+
+async function blobToBase64(blob){
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let bin = "";
+  const step = 0x8000;                       // po častiach, nech nepretečie zásobník
+  for(let i=0;i<bytes.length;i+=step) bin += String.fromCharCode.apply(null, bytes.subarray(i, i+step));
+  return btoa(bin);
 }
 
 // štýly: 0 bežný, 1 hlavička, 2 dátum, 3 trvanie, 4 trvanie zvýraznené,
