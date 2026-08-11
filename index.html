@@ -1063,7 +1063,7 @@ function openExportDialog(){
   shareKind = decideShareKind();   // rozhodnuté teraz, nie až pri kliknutí
   h += '<div class="btnrow"><button class="btn" onclick="doExport(\'download\')">Stiahnuť</button>';
   if(shareKind !== "none"){
-    h += '<button class="btn sec" onclick="doExport(\'share\')">Zdieľať'
+    h += '<button class="btn sec" onclick="shareNow()">Zdieľať'
       +  (shareKind === "csv" ? " (CSV)" : "") + "</button>";
   }
   h += "</div>";
@@ -1076,10 +1076,61 @@ function openExportDialog(){
   h += '<div class="hint">Odosiela sa cez tvoj Google účet z nasadeného Apps Scriptu, '
     +  "takže stačí pripojenie na internet – e-mailový klient v telefóne netreba.</div>";
   openModal(h);
+  prepareShare();          // súbor je hotový skôr, než naň používateľ ťukne
 }
-function exRangeChange(){ $("exDates").className = $("exRange").value==="range" ? "" : "hidden"; }
+function exRangeChange(){
+  $("exDates").className = $("exRange").value==="range" ? "" : "hidden";
+  prepareShare();
+}
 
-async function doExport(action){
+/* Súbor na zdieľanie sa pripraví vopred. Po ťuknutí na Zdieľať sa tak nerobí
+   vôbec nič okrem samotného share() – rovnako ako v teste, ktorý funguje. */
+let pendingShare = null;
+
+function prepareShare(){
+  pendingShare = null;
+  if(shareKind === "none") return;
+  try{
+    const ex = buildExport(true);
+    if(!ex) return;
+    if(shareKind === "csv"){
+      pendingShare = {
+        file: new File([new Blob(["﻿" + buildCsv(ex.cols, ex.list)], { type:"text/csv" })],
+                       asciiName(ex.fname).replace(/\.xlsx$/, ".csv"), { type:"text/csv" }),
+        blob: ex.blob, fname: ex.fname
+      };
+    } else {
+      pendingShare = {
+        file: new File([ex.blob], asciiName(ex.fname), { type:XLSX_MIME }),
+        blob: ex.blob, fname: ex.fname
+      };
+    }
+  }catch(e){ pendingShare = null; }
+}
+
+function shareNow(){
+  if(!pendingShare){ toast("V tomto rozsahu nie sú žiadne prestoje"); return; }
+  const file = pendingShare.file, blob = pendingShare.blob, fname = pendingShare.fname;
+  navigator.share({ files:[file], title:file.name })
+    .then(()=>{ closeModal(); })
+    .catch(err=>{
+      if(err && err.name === "AbortError") return;         // len zavreté menu
+      // Ak prehliadač odmietol .xlsx, prepneme sa natrvalo na CSV – to overene prejde.
+      if(shareKind === "xlsx"){
+        localStorage.setItem("prestoje_share_csv", "1");
+        shareKind = "csv";
+        prepareShare();
+        toast("Excel sa zdieľať nedal – ťukni na Zdieľať ešte raz, pošle sa CSV");
+        return;
+      }
+      download(blob, fname);
+      closeModal();
+      toast("Zdieľanie zlyhalo (" + (err.name||"") + ": " + (err.message||err) + "), súbor je stiahnutý");
+    });
+}
+
+// poskladá export pre zvolený rozsah; silent = bez upozornení (používa prepareShare)
+function buildExport(silent){
   const mode = $("exRange").value;
   let list, label;
   if(mode === "shift"){
@@ -1100,12 +1151,12 @@ async function doExport(action){
     list = live().slice().sort((x,y)=> (parseLocal(y.values[ff])||0) - (parseLocal(x.values[ff])||0));
     label = "vsetko";
   }
-  if(!list.length){ toast("V tomto rozsahu nie sú žiadne prestoje"); return; }
+  if(!list.length){ if(!silent) toast("V tomto rozsahu nie sú žiadne prestoje"); return null; }
   list = list.slice().reverse(); // v exceli od najstaršieho po najnovší
 
   syncExportOrder();
   const cols = cfg.exportOrder.filter(id=>!cfg.exportSkip.includes(id)).map(fieldById).filter(Boolean);
-  if(!cols.length){ toast("V nastaveniach nie je vybraný žiadny stĺpec"); return; }
+  if(!cols.length){ if(!silent) toast("V nastaveniach nie je vybraný žiadny stĺpec"); return null; }
 
   const rows = [];
   rows.push(cols.map(f=>({ v:f.name, t:"s", s:1 })));
@@ -1116,27 +1167,13 @@ async function doExport(action){
 
   const blob = buildXlsx(rows, cols.map(f=>Math.max(12, Math.min(30, f.name.length+4))));
   const fname = (cfg.fileName||"prestoje") + "_" + label + ".xlsx";
+  return { list:list, cols:cols, blob:blob, fname:fname, label:label };
+}
 
-  if(action === "share"){
-    // Žiadne canShare ani iné volania – share() musí prísť hneď, kým platí gesto.
-    let file;
-    if(shareKind === "csv"){
-      file = new File([new Blob(["﻿" + buildCsv(cols, list)], { type:"text/csv" })],
-                      asciiName(fname).replace(/\.xlsx$/, ".csv"), { type:"text/csv" });
-    } else {
-      file = new File([blob], asciiName(fname), { type:XLSX_MIME });
-    }
-    try{
-      await navigator.share({ files:[file], title:file.name });
-      closeModal();
-    }catch(err){
-      if(err && err.name === "AbortError") return;      // používateľ len zavrel menu
-      download(blob, fname);
-      closeModal();
-      toast("Zdieľanie zlyhalo (" + (err.name||"") + ": " + (err.message||err) + "), súbor je stiahnutý");
-    }
-    return;
-  }
+async function doExport(action){
+  const ex = buildExport(false);
+  if(!ex) return;
+  const list = ex.list, blob = ex.blob, fname = ex.fname, label = ex.label;
 
   if(action === "email"){
     const to = $("exMail").value.trim();
@@ -1179,6 +1216,8 @@ function decideShareKind(){
   const probe = (n,m)=> new File([new Blob(["x"])], n, { type:m });
   try{
     if(!navigator.share) return "none";
+    // zariadenie už raz excel odmietlo – držíme sa CSV
+    if(localStorage.getItem("prestoje_share_csv") === "1") return "csv";
     if(!navigator.canShare) return "xlsx";
     if(navigator.canShare({ files:[probe("t.xlsx", XLSX_MIME)] })) return "xlsx";
     if(navigator.canShare({ files:[probe("t.csv", "text/csv")] })) return "csv";
