@@ -700,6 +700,7 @@ function renderSettings(){
   h += '<div class="hint">Údaje sú uložené v telefóne. Zálohu si občas ulož do súboru.</div>';
   h += '<div class="btnrow"><button class="btn sec" onclick="backupJSON()">Záloha</button>'
     +  '<button class="btn sec" onclick="restoreJSON()">Obnoviť zo zálohy</button></div>';
+  h += '<div class="btnrow"><button class="btn sec wide" onclick="openShareDiag()">Diagnostika zdieľania</button></div>';
   h += '<div class="btnrow"><button class="btn danger wide" onclick="wipeRecords()">Vymazať všetky prestoje ('+live().length+')</button></div>';
   h += "</div>";
 
@@ -859,6 +860,50 @@ function restoreJSON(){
   };
   inp.click();
 }
+/* ---- diagnostika systémového zdieľania ---- */
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+function canShareType(name, mime){
+  try{
+    if(!navigator.canShare) return "canShare chýba";
+    return navigator.canShare({ files:[ new File([new Blob(["x"])], name, { type:mime }) ] }) ? "áno" : "NIE";
+  }catch(e){ return "chyba: " + (e.name||e.message); }
+}
+function openShareDiag(){
+  const standalone = window.matchMedia("(display-mode: standalone)").matches ? "áno (ikona na ploche)" : "nie (v prehliadači)";
+  const rows = [
+    ["navigator.share", navigator.share ? "áno" : "NIE"],
+    ["navigator.canShare", navigator.canShare ? "áno" : "NIE"],
+    ["zabezpečený kontext", window.isSecureContext ? "áno" : "NIE"],
+    ["spustené ako aplikácia", standalone],
+    ["zdieľanie .xlsx", canShareType("test.xlsx", XLSX_MIME)],
+    ["zdieľanie .csv", canShareType("test.csv", "text/csv")],
+    ["zdieľanie .txt", canShareType("test.txt", "text/plain")]
+  ];
+  let h = "<h2>Diagnostika zdieľania</h2><div class='card'>";
+  rows.forEach(r=>{ h += '<div class="row"><span class="k">'+esc(r[0])+'</span><span class="v">'+esc(r[1])+"</span></div>"; });
+  h += "</div><div id='diagOut' class='hint'>Skús postupne obe tlačidlá a napíš mi, čo vypíšu.</div>";
+  h += '<div class="btnrow"><button class="btn sec" onclick="diagShareText()">Zdieľať text</button>'
+    +  '<button class="btn sec" onclick="diagShareFile()">Zdieľať súbor</button></div>';
+  h += '<div class="btnrow"><button class="btn wide" onclick="closeModal()">Zavrieť</button></div>';
+  openModal(h);
+}
+function diagOut(msg){
+  const el = $("diagOut");
+  if(el){ el.innerHTML = "<b>Výsledok:</b> " + esc(msg); }
+}
+async function diagShareText(){
+  if(!navigator.share){ diagOut("navigator.share nie je k dispozícii"); return; }
+  try{ await navigator.share({ title:"Test", text:"Test zdieľania z aplikácie Prestoje" }); diagOut("text – OK"); }
+  catch(e){ diagOut("text – " + (e.name||"") + ": " + (e.message||e)); }
+}
+async function diagShareFile(){
+  const f = new File([new Blob(["stlpec1;stlpec2\r\na;b"])], "test.csv", { type:"text/csv" });
+  if(!navigator.share){ diagOut("navigator.share nie je k dispozícii"); return; }
+  try{ await navigator.share({ files:[f], title:"test.csv" }); diagOut("súbor – OK"); }
+  catch(e){ diagOut("súbor – " + (e.name||"") + ": " + (e.message||e)); }
+}
+
 function wipeRecords(){
   if(!confirm("Naozaj vymazať VŠETKY zapísané prestoje? Nastavenia zostanú.")) return;
   const t = new Date().toISOString();
@@ -1086,9 +1131,14 @@ async function doExport(action){
     }
     download(blob, fname);
     closeModal();
-    toast(first === "unsupported"
-      ? "Telefón nedovolí zdieľať tento typ súboru, je stiahnutý do zariadenia"
-      : "Zdieľanie zlyhalo (" + first + "), súbor je stiahnutý");
+    if(first === "unsupported"){
+      toast("Prehliadač nedovolí zdieľať tento typ súboru, je stiahnutý do zariadenia");
+    } else if(first.indexOf("NotAllowedError") === 0){
+      // typické pre počítač – systémové zdieľanie súborov tam často chýba
+      toast("Prehliadač zdieľanie súborov nepovolil (na počítači väčšinou nefunguje, na telefóne áno). Súbor je stiahnutý.");
+    } else {
+      toast("Zdieľanie zlyhalo (" + first + "), súbor je stiahnutý");
+    }
     return;
   }
 
