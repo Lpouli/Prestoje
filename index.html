@@ -1069,14 +1069,26 @@ async function doExport(action){
   const fname = (cfg.fileName||"prestoje") + "_" + label + ".xlsx";
 
   if(action === "share"){
-    const file = new File([blob], fname, { type:blob.type });
-    try{
-      if(navigator.canShare && !navigator.canShare({ files:[file] })) throw new Error("nepodporované");
-      await navigator.share({ files:[file], title:fname });
-      closeModal();
-    }catch(err){
-      if(String(err.name) !== "AbortError"){ download(blob, fname); closeModal(); toast("Zdieľanie nešlo, súbor je stiahnutý"); }
+    // Chrome zdieľa len povolené typy súborov a .xlsx medzi ne nemusí patriť.
+    // Skúsime teda najprv excel, potom CSV a až nakoniec stiahneme.
+    const first = await tryShareFile(blob, fname, blob.type);
+    if(first === "ok" || first === "abort"){ closeModal(); return; }
+
+    if(first === "unsupported"){
+      const csv = new Blob(["﻿" + buildCsv(cols, list)], { type:"text/csv" });
+      const csvName = fname.replace(/\.xlsx$/, ".csv");
+      const second = await tryShareFile(csv, csvName, "text/csv");
+      if(second === "ok" || second === "abort"){
+        closeModal();
+        if(second === "ok") toast("Zdieľané ako CSV – .xlsx telefón zdieľať nedovolí");
+        return;
+      }
     }
+    download(blob, fname);
+    closeModal();
+    toast(first === "unsupported"
+      ? "Telefón nedovolí zdieľať tento typ súboru, je stiahnutý do zariadenia"
+      : "Zdieľanie zlyhalo (" + first + "), súbor je stiahnutý");
     return;
   }
 
@@ -1111,6 +1123,29 @@ async function doExport(action){
   download(blob, fname);
   closeModal();
   toast("Vyexportované: " + list.length + " riadkov");
+}
+
+// vráti "ok" | "abort" | "unsupported" | text chyby
+async function tryShareFile(blob, name, mime){
+  if(!navigator.share) return "unsupported";
+  const file = new File([blob], name, { type:mime });
+  // canShare je synchrónne, takže neminie povolenie na otvorenie systémového menu
+  if(navigator.canShare && !navigator.canShare({ files:[file] })) return "unsupported";
+  try{
+    await navigator.share({ files:[file], title:name });
+    return "ok";
+  }catch(err){
+    if(err && err.name === "AbortError") return "abort";
+    return (err && (err.name || err.message)) ? (err.name + ": " + err.message) : String(err);
+  }
+}
+
+// záložný formát pre zdieľanie – Excel ho otvorí, hodnoty sú v zobrazenej podobe
+function buildCsv(cols, list){
+  const esc = v => '"' + String(v===undefined||v===null?"":v).replace(/"/g,'""') + '"';
+  const lines = [ cols.map(f=>esc(f.name)).join(";") ];
+  list.forEach(r=>{ lines.push(cols.map(f=>esc(displayValue(r,f))).join(";")); });
+  return lines.join("\r\n");
 }
 
 async function blobToBase64(blob){
