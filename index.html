@@ -196,6 +196,10 @@ const DEFAULT_CFG = {
   exportSkip:  [],
   highlightMin: 0,      // 0 = vypnuté; napr. 30 = zvýrazniť prestoje od 30 min
   highlightRunning: true,
+  mailTo: "",
+  // prázdne = nastavenia neboli na tomto zariadení nikdy zmenené,
+  // takže sa nesmú vnútiť tímu (pri porovnaní vždy prehrajú)
+  cfgUpdatedAt: "",
   dtFormat:  "excel",   // excel | text
   durFormat: "excel",   // excel | text | min
   fileName:  "prestoje"
@@ -680,6 +684,9 @@ function renderSettings(){
     +  'value="'+esc(syncCfg.url)+'" onchange="setSyncUrl(this.value)"></label>';
   h += '<div class="btnrow"><button class="btn sec" onclick="syncNow(false)">Synchronizovať teraz</button>'
     +  '<button class="btn sec" onclick="openSyncHelp()">Návod</button></div>';
+  h += '<div class="btnrow"><button class="btn sec wide" onclick="restoreFieldsFromSheet()">Obnoviť polia z tabuľky</button></div>';
+  h += '<div class="hint">Obnovu použi, ak sa zoznam polí niekde stratil – poskladá sa späť z tabuľky '
+    +  "aj s pôvodnými identifikátormi, takže sa hodnoty v starých prestojoch znova zobrazia.</div>";
   // lastAt je ISO v UTC – prevedieme cez Date, nie orezaním textu
   const st = syncCfg.lastAt ? "Naposledy: " + fmtDate(new Date(syncCfg.lastAt)) : "Zatiaľ nesynchronizované";
   h += '<div class="hint" style="margin-top:10px">' + esc(st)
@@ -891,8 +898,18 @@ async function syncNow(silent){
   if(syncBusy) return;
   syncBusy = true; renderSyncChip();
   try{
+    // Prvé pripojenie zariadenia: najprv len stiahnuť, aby si prázdne nastavenia
+    // nikdy neprepísali tie tímové.
+    if(!syncCfg.lastAt){
+      const first = await fetch(syncCfg.url, { redirect:"follow" });
+      if(first.ok){
+        const fd = await first.json();
+        if(fd && fd.ok) mergeRemote(fd);
+      }
+    }
     const payload = {
-      cfg: cfg,
+      // nastavenia posielame len ak ich na tomto zariadení niekto naozaj zmenil
+      cfg: cfg.cfgUpdatedAt ? cfg : null,
       cfgUpdatedAt: cfg.cfgUpdatedAt || "",
       fields: cfg.fields.map(f=>({ id:f.id, name:f.name, type:f.type })),
       records: records.map(pushRecord)
@@ -940,6 +957,32 @@ function mergeRemote(data){
     cfg = data.cfg;
     cfg.cfgUpdatedAt = data.cfgUpdatedAt;
     syncExportOrder(); persistCfg();
+  }
+}
+
+// Záchrana: poskladá polia späť z hárku v tabuľke aj s pôvodnými id,
+// takže sa k hodnotám v už zapísaných prestojoch znova pripoja.
+async function restoreFieldsFromSheet(){
+  if(!syncCfg.url){ toast("Najprv vlož adresu Apps Script aplikácie"); return; }
+  if(!confirm("Nahradí zoznam polí tým, čo je v Google tabuľke. Pokračovať?")) return;
+  try{
+    const res = await fetch(syncCfg.url, { redirect:"follow" });
+    const data = await res.json();
+    if(!data.ok || !data.fields || !data.fields.length) throw new Error("tabuľka neobsahuje definíciu polí");
+
+    const flds = data.fields.map(f=>({ id:f.id, name:f.name||f.id, type:f.type||"text", required:false }));
+    const dts = flds.filter(f=>f.type==="datetime");
+    flds.filter(f=>f.type==="duration").forEach(f=>{
+      f.from = dts[0] ? dts[0].id : "";
+      f.to   = dts[1] ? dts[1].id : "";
+    });
+    cfg.fields = flds;
+    if(!fieldById(cfg.filterField)) cfg.filterField = dts[1] ? dts[1].id : (dts[0] ? dts[0].id : null);
+    if(!fieldById(cfg.titleField))  cfg.titleField  = flds[0].id;
+    syncExportOrder(); saveCfg(); renderAll();
+    toast("Polia obnovené – skontroluj názvy a výpočet trvania");
+  }catch(err){
+    toast("Nepodarilo sa: " + (err.message || err));
   }
 }
 
@@ -1303,7 +1346,6 @@ $("viewShift").onchange  = e => { view.shiftId = e.target.value; renderAll(); };
     if(r.deleted === undefined){ r.deleted = false; changed = true; }
   });
   if(changed) saveRec();
-  if(!cfg.cfgUpdatedAt){ cfg.cfgUpdatedAt = new Date().toISOString(); }
 })();
 
 syncExportOrder();
